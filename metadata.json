@@ -1,0 +1,8 @@
+{
+  "name": "ResumeIQ – AI Resume Builder & JD Optimizer",
+  "description": "AI-powered resume optimization platform that tailors CVs to target job descriptions while strictly preserving original LaTeX formatting, typography, and factual integrity.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

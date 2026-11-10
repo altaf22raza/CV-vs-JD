@@ -1,0 +1,146 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account profile and preferences",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Unique Firebase Auth user ID"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User full name"
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Optional user avatar URL"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of account creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update"
+        }
+      },
+      "required": ["uid", "email"]
+    },
+    "Resume": {
+      "title": "Resume",
+      "description": "Structured resume document with LaTeX source and optimization data",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique resume ID"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID"
+        },
+        "title": {
+          "type": "string",
+          "description": "Resume version title"
+        },
+        "targetRole": {
+          "type": "string",
+          "description": "Target job title for optimization"
+        },
+        "companyName": {
+          "type": "string",
+          "description": "Target company name"
+        },
+        "latexSource": {
+          "type": "string",
+          "description": "Current LaTeX source code"
+        },
+        "originalLatex": {
+          "type": "string",
+          "description": "Original un-optimized LaTeX source code"
+        },
+        "summary": {
+          "type": "string",
+          "description": "Professional summary text"
+        },
+        "matchScore": {
+          "type": "number",
+          "description": "ATS match score percentage (0-100)"
+        },
+        "originalMatchScore": {
+          "type": "number",
+          "description": "Original ATS match score before optimization"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO update timestamp"
+        }
+      },
+      "required": ["id", "userId", "title", "latexSource"]
+    },
+    "OptimizationHistory": {
+      "title": "OptimizationHistory",
+      "description": "Audit record of a Job Description analysis and optimization run",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "History item ID"
+        },
+        "userId": {
+          "type": "string",
+          "description": "User ID"
+        },
+        "resumeId": {
+          "type": "string",
+          "description": "Associated resume ID"
+        },
+        "targetRole": {
+          "type": "string",
+          "description": "Target job role"
+        },
+        "companyName": {
+          "type": "string",
+          "description": "Company name"
+        },
+        "scoreBefore": {
+          "type": "number",
+          "description": "ATS score before optimization"
+        },
+        "scoreAfter": {
+          "type": "number",
+          "description": "ATS score after optimization"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Run timestamp"
+        }
+      },
+      "required": ["id", "userId", "targetRole"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Collection of user profile documents"
+    },
+    "/resumes/{resumeId}": {
+      "schema": "Resume",
+      "description": "Collection of saved resume versions"
+    },
+    "/history/{historyId}": {
+      "schema": "OptimizationHistory",
+      "description": "Audit trail of JD optimizations"
+    }
+  }
+}
