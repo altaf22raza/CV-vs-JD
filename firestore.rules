@@ -1,6 +1,31 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: users/{userId}
+    //   Fields: uid (string), email (string), displayName (string),
+    //           photoURL (string, optional), retentionDays (number, optional),
+    //           createdAt (string, optional), updatedAt (string)
+    //
+    // Collection: resumes/{resumeId}
+    //   Fields: id, userId, title, targetRole, companyName, cvType, templateId,
+    //           language, latexSource, originalLatex, structuredData,
+    //           originalStructuredData, diffItems, identifiedKeywordsToAdd,
+    //           snapshots, atsReport, jdText, createdAt, updatedAt,
+    //           updatedAtServer, isOriginal
+    //
+    // Collection: history/{historyId}
+    //   Fields: id, userId, resumeId, targetRole, companyName,
+    //           scoreBefore, scoreAfter, createdAt, timestamp
+    //
+    // Collection: applications/{applicationId}
+    //   Fields: id, userId, company, role, status, resumeVersionId,
+    //           resumeTitle, estimatedFit, appliedDate, followUpDate,
+    //           location, jobUrl, jdText, notes, updatedAt
+    // ===============================================================
+
     // Default Deny Catch-all
     match /{document=**} {
       allow read, write: if false;
@@ -10,29 +35,100 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isValidId(id) {
-      return id is string && id.size() > 0 && id.size() <= 128;
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    // User Profile
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidUserPayload(userId) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['uid', 'email'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'retentionDays', 'createdAt', 'updatedAt'])
+        && data.uid == userId
+        && data.email is string && data.email.size() > 2 && data.email.size() <= 254
+        && (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 120))
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1000))
+        && (!('retentionDays' in data) || (data.retentionDays is int && data.retentionDays >= 0 && data.retentionDays <= 3650));
+    }
+
+    function isValidResumePayload(resumeId) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['id', 'userId', 'title', 'latexSource'])
+        && data.keys().hasOnly([
+          'id', 'userId', 'title', 'targetRole', 'companyName', 'cvType',
+          'templateId', 'language', 'latexSource', 'originalLatex',
+          'structuredData', 'originalStructuredData', 'diffItems',
+          'identifiedKeywordsToAdd', 'snapshots', 'atsReport', 'jdText',
+          'createdAt', 'updatedAt', 'updatedAtServer', 'isOriginal'
+        ])
+        && data.id == resumeId
+        && data.userId == request.auth.uid
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+        && data.latexSource is string && data.latexSource.size() <= 200000
+        && (!('targetRole' in data) || (data.targetRole is string && data.targetRole.size() <= 200))
+        && (!('companyName' in data) || (data.companyName is string && data.companyName.size() <= 200))
+        && (!('jdText' in data) || (data.jdText is string && data.jdText.size() <= 50000));
+    }
+
+    function isValidHistoryPayload(historyId) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['id', 'userId', 'targetRole'])
+        && data.keys().hasOnly([
+          'id', 'userId', 'resumeId', 'targetRole', 'companyName',
+          'scoreBefore', 'scoreAfter', 'createdAt', 'timestamp'
+        ])
+        && data.id == historyId
+        && data.userId == request.auth.uid
+        && data.targetRole is string && data.targetRole.size() > 0 && data.targetRole.size() <= 200;
+    }
+
+    function isValidApplicationPayload(applicationId) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['id', 'userId', 'company', 'role', 'status'])
+        && data.keys().hasOnly([
+          'id', 'userId', 'company', 'role', 'status', 'resumeVersionId',
+          'resumeTitle', 'estimatedFit', 'appliedDate', 'followUpDate',
+          'location', 'jobUrl', 'jdText', 'notes', 'updatedAt'
+        ])
+        && data.id == applicationId
+        && data.userId == request.auth.uid
+        && data.company is string && data.company.size() > 0 && data.company.size() <= 200
+        && data.role is string && data.role.size() > 0 && data.role.size() <= 200
+        && data.status in ['Saved', 'Applied', 'Interviewing', 'Offer', 'Rejected']
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 5000))
+        && (!('jdText' in data) || (data.jdText is string && data.jdText.size() <= 50000));
+    }
+
+    // User Profile (owner can read, write, and delete their own data for privacy compliance)
     match /users/{userId} {
-      allow get: if isSignedIn() && request.auth.uid == userId;
-      allow create: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
-      allow update: if isSignedIn() && request.auth.uid == userId;
-      allow delete: if false;
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserPayload(userId);
+      allow update: if isOwner(userId)
+        && isValidUserPayload(userId)
+        && request.resource.data.uid == resource.data.uid
+        && (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt);
+      allow delete: if isOwner(userId);
     }
 
     // Resumes Collection
     match /resumes/{resumeId} {
       allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() 
-        && request.resource.data.userId == request.auth.uid
+      allow create: if isSignedIn()
         && isValidId(resumeId)
-        && request.resource.data.title is string;
-      allow update: if isSignedIn() 
+        && isValidResumePayload(resumeId);
+      allow update: if isSignedIn()
         && resource.data.userId == request.auth.uid
-        && request.resource.data.userId == request.auth.uid;
+        && isValidResumePayload(resumeId)
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.id == resource.data.id
+        && (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt);
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
@@ -40,11 +136,35 @@ service cloud.firestore {
     match /history/{historyId} {
       allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() 
-        && request.resource.data.userId == request.auth.uid
-        && isValidId(historyId);
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn()
+        && isValidId(historyId)
+        && isValidHistoryPayload(historyId);
       allow update: if false;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // Application Tracker Collection
+    match /applications/{applicationId} {
+      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn()
+        && isValidId(applicationId)
+        && isValidApplicationPayload(applicationId);
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && isValidApplicationPayload(applicationId)
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.id == resource.data.id;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // Server-Only Auth OTP & Rate-Limit Collections (Admin SDK only; strictly denied to clients)
+    match /auth_otps/{otpId} {
+      allow read, write: if false;
+    }
+
+    match /auth_rate_limits/{bucketId} {
+      allow read, write: if false;
     }
   }
 }

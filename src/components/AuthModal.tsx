@@ -7,9 +7,7 @@ import {
   CheckCircle2, 
   ArrowRight, 
   RotateCcw, 
-  Download, 
-  ShieldCheck, 
-  Sparkles 
+  ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../firebase/AuthContext';
 
@@ -28,7 +26,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   subtitle,
   onSuccess
 }) => {
-  const { requestEmailOtp, verifyEmailOtp } = useAuth();
+  const { requestEmailOtp, verifyEmailOtp, signInWithGoogle } = useAuth();
   
   // Step 1: enter email | Step 2: enter 6-digit OTP
   const [step, setStep] = useState<'email' | 'otp'>('email');
@@ -37,7 +35,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
-  const [debugOtp, setDebugOtp] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState<number>(0);
 
   // Timer countdown for resending code
@@ -49,7 +46,38 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
+  // Close on Escape key press & lock body scroll
+  useEffect(() => {
+    if (!isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const result = await signInWithGoogle();
+      if (!result.success) {
+        setError(result.error || 'Could not complete Google Sign-In.');
+        return;
+      }
+      if (onSuccess) onSuccess();
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,11 +91,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     try {
       const res = await requestEmailOtp(email);
       setInfoMessage(`We've sent a 6-digit verification code to ${email}`);
-      if (res.debugOtp) {
-        setDebugOtp(res.debugOtp);
-      }
       setStep('otp');
-      setResendCooldown(30);
+      setResendCooldown(res.resendCooldownSec || 45);
     } catch (err: any) {
       setError(err?.message || 'Failed to send verification code. Please check your email.');
     } finally {
@@ -91,7 +116,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         return;
       }
 
-      // Success! Close modal and run success callback
       if (onSuccess) {
         onSuccess();
       }
@@ -103,48 +127,49 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleAutoFillDebug = () => {
-    if (debugOtp) {
-      setOtp(debugOtp);
-    }
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-[#182230]/55 backdrop-blur-xs"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white rounded-[14px] shadow-xl border border-[#E5EAF0] w-full max-w-md max-h-[92dvh] flex flex-col overflow-hidden text-[#182230]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#1F2A44] text-white flex items-center justify-center shadow-xs">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#E5EAF0] flex items-center justify-between gap-3 bg-[#F7F9FC] shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-[10px] bg-[#173B65] text-white flex items-center justify-center shrink-0">
               <Mail className="w-4 h-4" />
             </div>
-            <div>
-              <h3 className="text-sm font-bold text-[#1F2A44]">
+            <div className="min-w-0">
+              <h3 className="text-sm font-bold text-[#173B65] truncate">
                 {title || (step === 'email' ? 'Sign In / Sign Up' : 'Verify Email Code')}
               </h3>
-              <p className="text-[11px] text-slate-500">
-                {subtitle || 'Use your email address with fast OTP verification.'}
+              <p className="text-[11px] text-slate-500 line-clamp-2">
+                {subtitle || 'Sign in with Google or verified email via Firebase Authentication.'}
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200/50 transition-colors"
+            className="p-2 text-slate-400 hover:text-[#173B65] rounded-[8px] hover:bg-[#E5EAF0]/60 transition-colors shrink-0 cursor-pointer"
+            aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-6 space-y-4">
+        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
           {/* Security Badge */}
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50/70 border border-blue-200 rounded-lg text-[11px] text-blue-800">
-            <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
-            <span>Passwordless email authentication. No passwords to remember.</span>
+          <div className="flex items-center gap-2 px-3 py-2 bg-[#F7F9FC] border border-[#E5EAF0] rounded-[10px] text-[11px] text-[#173B65]">
+            <ShieldCheck className="w-4 h-4 text-[#3978B8] shrink-0" />
+            <span>Firebase Authentication &amp; private Firestore cloud sync.</span>
           </div>
 
           {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 flex items-start gap-2">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-[10px] text-xs text-rose-700 flex items-start gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
               <span>{error}</span>
             </div>
@@ -152,49 +177,71 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           {/* STEP 1: ENTER EMAIL */}
           {step === 'email' ? (
-            <form onSubmit={handleSendOtp} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                  <input
-                    type="email"
-                    required
-                    autoFocus
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="w-full text-xs pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                  />
-                </div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  We will send a 6-digit one-time code to this email.
-                </p>
+            <div className="space-y-4">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleGoogleSignIn}
+                className="btn-interactive w-full min-h-[42px] py-2.5 px-4 bg-white hover:bg-[#F7F9FC] text-[#182230] border border-[#E5EAF0] hover:border-[#3978B8] text-xs font-semibold rounded-[10px] transition-colors flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                <span className="w-4 h-4 rounded-full bg-[#173B65] text-white text-[10px] font-bold flex items-center justify-center">
+                  G
+                </span>
+                <span>Continue with Google (Cloud Sync)</span>
+              </button>
+
+              <div className="relative flex items-center justify-center">
+                <div className="border-t border-[#E5EAF0] w-full" />
+                <span className="bg-white px-2.5 text-[11px] text-slate-400 shrink-0">
+                  or sign in with email code
+                </span>
+                <div className="border-t border-[#E5EAF0] w-full" />
               </div>
 
-              <button
-                type="submit"
-                disabled={loading || !email.trim()}
-                className="w-full py-2.5 px-4 bg-[#1F2A44] hover:bg-[#161f33] text-white text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
-              >
-                <span>{loading ? 'Sending Code...' : 'Send Verification Code'}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </form>
+              <form onSubmit={handleSendOtp} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-[#182230] mb-1.5">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    <input
+                      type="email"
+                      required
+                      autoFocus
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      className="w-full text-xs pl-9 pr-3 py-2.5 bg-white border border-[#E5EAF0] rounded-[10px] focus:border-[#3978B8] focus:ring-1 focus:ring-[#3978B8] focus:outline-none text-[#182230]"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    We will send a 6-digit one-time code to this email.
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading || !email.trim()}
+                  className="btn-interactive w-full min-h-[42px] py-2.5 px-4 bg-[#173B65] hover:bg-[#122F52] text-white text-xs font-semibold rounded-[10px] transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <span>{loading ? 'Sending Code...' : 'Send Verification Code'}</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </form>
+            </div>
           ) : (
             /* STEP 2: ENTER OTP */
             <form onSubmit={handleVerifyOtp} className="space-y-4">
               {infoMessage && (
-                <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 flex items-start gap-2">
+                <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-[10px] text-xs text-emerald-800 flex items-start gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                   <div>
                     <span className="font-medium">{infoMessage}</span>
                     <button
                       type="button"
                       onClick={() => setStep('email')}
-                      className="ml-2 text-blue-600 underline font-semibold hover:text-blue-800 text-[11px]"
+                      className="ml-2 text-[#3978B8] underline font-semibold hover:text-[#173B65] text-[11px]"
                     >
                       Change
                     </button>
@@ -202,27 +249,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               )}
 
-              {/* Development OTP quick auto-fill helper */}
-              {debugOtp && (
-                <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-center justify-between">
-                  <div>
-                    <span className="font-semibold text-amber-800">Demo Code:</span>{' '}
-                    <code className="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-mono font-bold tracking-wider">
-                      {debugOtp}
-                    </code>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleAutoFillDebug}
-                    className="text-[11px] font-semibold text-blue-700 bg-white border border-amber-300 hover:bg-amber-100 px-2 py-0.5 rounded shadow-2xs transition-colors"
-                  >
-                    Auto-Fill
-                  </button>
-                </div>
-              )}
-
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                <label className="block text-xs font-semibold text-[#182230] mb-1.5">
                   Enter 6-Digit Verification Code
                 </label>
                 <div className="relative">
@@ -235,7 +263,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
                     placeholder="123456"
-                    className="w-full text-base font-mono tracking-widest pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none text-center font-bold text-slate-800"
+                    className="w-full text-base font-mono tracking-widest pl-9 pr-3 py-2 bg-white border border-[#E5EAF0] rounded-[10px] focus:border-[#3978B8] focus:ring-1 focus:ring-[#3978B8] focus:outline-none text-center font-bold text-[#182230]"
                   />
                 </div>
               </div>
@@ -246,7 +274,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   type="button"
                   disabled={resendCooldown > 0 || loading}
                   onClick={handleSendOtp}
-                  className="text-blue-600 font-semibold hover:underline disabled:opacity-50 disabled:no-underline"
+                  className="text-[#3978B8] font-semibold hover:underline disabled:opacity-50 disabled:no-underline"
                 >
                   {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}
                 </button>
@@ -256,7 +284,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setStep('email')}
-                  className="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                  className="btn-interactive py-2.5 px-3 bg-[#F7F9FC] hover:bg-[#E5EAF0]/60 border border-[#E5EAF0] text-[#182230] text-xs font-semibold rounded-[10px] transition-colors flex items-center justify-center gap-1.5"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>Back</span>
@@ -264,7 +292,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="submit"
                   disabled={loading || otp.length < 6}
-                  className="flex-1 py-2.5 px-4 bg-[#1F2A44] hover:bg-[#161f33] text-white text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
+                  className="btn-interactive flex-1 py-2.5 px-4 bg-[#173B65] hover:bg-[#122F52] text-white text-xs font-semibold rounded-[10px] transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   <span>{loading ? 'Verifying...' : 'Verify & Sign In'}</span>
                   <ArrowRight className="w-3.5 h-3.5" />

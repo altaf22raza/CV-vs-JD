@@ -2,7 +2,7 @@
   "entities": {
     "UserProfile": {
       "title": "UserProfile",
-      "description": "User account profile and preferences",
+      "description": "User account profile, retention preferences, and privacy metadata",
       "type": "object",
       "properties": {
         "uid": {
@@ -20,6 +20,10 @@
         "photoURL": {
           "type": "string",
           "description": "Optional user avatar URL"
+        },
+        "retentionDays": {
+          "type": "number",
+          "description": "User-configured auto-purge retention days (0 = manual only)"
         },
         "createdAt": {
           "type": "string",
@@ -57,6 +61,19 @@
           "type": "string",
           "description": "Target company name"
         },
+        "cvType": {
+          "type": "string",
+          "enum": ["uploaded", "created", "optimized"],
+          "description": "Origin type of resume version"
+        },
+        "templateId": {
+          "type": "string",
+          "description": "Active template identifier"
+        },
+        "language": {
+          "type": "string",
+          "description": "ISO language code"
+        },
         "latexSource": {
           "type": "string",
           "description": "Current LaTeX source code"
@@ -65,17 +82,9 @@
           "type": "string",
           "description": "Original un-optimized LaTeX source code"
         },
-        "summary": {
+        "jdText": {
           "type": "string",
-          "description": "Professional summary text"
-        },
-        "matchScore": {
-          "type": "number",
-          "description": "ATS match score percentage (0-100)"
-        },
-        "originalMatchScore": {
-          "type": "number",
-          "description": "Original ATS match score before optimization"
+          "description": "Target job description text"
         },
         "createdAt": {
           "type": "string",
@@ -84,6 +93,10 @@
         "updatedAt": {
           "type": "string",
           "description": "ISO update timestamp"
+        },
+        "isOriginal": {
+          "type": "boolean",
+          "description": "Whether this is a baseline master resume"
         }
       },
       "required": ["id", "userId", "title", "latexSource"]
@@ -115,11 +128,11 @@
         },
         "scoreBefore": {
           "type": "number",
-          "description": "ATS score before optimization"
+          "description": "Estimated alignment score before optimization"
         },
         "scoreAfter": {
           "type": "number",
-          "description": "ATS score after optimization"
+          "description": "Estimated alignment score after optimization"
         },
         "createdAt": {
           "type": "string",
@@ -127,6 +140,79 @@
         }
       },
       "required": ["id", "userId", "targetRole"]
+    },
+    "JobApplication": {
+      "title": "JobApplication",
+      "description": "Tracked job application linked to a resume version",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique application ID"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID"
+        },
+        "company": {
+          "type": "string",
+          "description": "Target employer name"
+        },
+        "role": {
+          "type": "string",
+          "description": "Job title applied for"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Saved", "Applied", "Interviewing", "Offer", "Rejected"],
+          "description": "Current pipeline stage"
+        },
+        "resumeVersionId": {
+          "type": "string",
+          "description": "ID of resume version used"
+        },
+        "appliedDate": {
+          "type": "string",
+          "description": "Application date (YYYY-MM-DD)"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last modified ISO timestamp"
+        }
+      },
+      "required": ["id", "userId", "company", "role", "status"]
+    },
+    "ServerAuthOtp": {
+      "title": "ServerAuthOtp",
+      "description": "Server-only HMAC-hashed OTP records with strict expiration timestamps (no client SDK access)",
+      "type": "object",
+      "properties": {
+        "expiresAt": {
+          "type": "number",
+          "description": "Unix epoch millisecond expiration timestamp"
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Unix epoch millisecond update timestamp"
+        }
+      },
+      "required": ["expiresAt"]
+    },
+    "ServerAuthRateLimit": {
+      "title": "ServerAuthRateLimit",
+      "description": "Server-only IP and email resend rate-limit windows (no client SDK access)",
+      "type": "object",
+      "properties": {
+        "expiresAt": {
+          "type": "number",
+          "description": "Unix epoch millisecond expiration timestamp"
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Unix epoch millisecond update timestamp"
+        }
+      },
+      "required": ["expiresAt"]
     }
   },
   "firestore": {
@@ -141,6 +227,18 @@
     "/history/{historyId}": {
       "schema": "OptimizationHistory",
       "description": "Audit trail of JD optimizations"
+    },
+    "/applications/{applicationId}": {
+      "schema": "JobApplication",
+      "description": "Collection of user job application tracker items"
+    },
+    "/auth_otps/{otpId}": {
+      "schema": "ServerAuthOtp",
+      "description": "Server-only collection for hashed OTP records (Admin SDK only)"
+    },
+    "/auth_rate_limits/{bucketId}": {
+      "schema": "ServerAuthRateLimit",
+      "description": "Server-only collection for IP and OTP resend rate limits (Admin SDK only)"
     }
   }
 }

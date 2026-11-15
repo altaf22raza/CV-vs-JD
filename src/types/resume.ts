@@ -48,10 +48,13 @@ export interface CertificationGroup {
   url?: string;
 }
 
+export type SupportedLanguage = 'en' | 'es' | 'fr' | 'de' | 'hi';
+
 export interface StructuredResume {
   name: string;
   targetRoleHeadline: string;
   templateId?: string;
+  language?: SupportedLanguage;
   contact: {
     location: string;
     phone: string;
@@ -87,20 +90,44 @@ export interface KeywordMatch {
   foundInResume: boolean;
   frequencyInJD: number;
   context?: string;
+  jdEvidence?: string;
+  resumeEvidence?: string;
+  matchedSections?: string[];
+  matchType?: 'exact' | 'variant' | 'none';
+}
+
+export interface FormattingCheckItem {
+  label: string;
+  passed: boolean;
+  points: number;
+  maxPoints: number;
+  detail: string;
 }
 
 export interface ATSReport {
   overallScore: number;
   originalScore: number;
+  atsCompatibility?: {
+    score: number;
+    status: 'High' | 'Moderate' | 'Needs Work';
+    assessment: string;
+    checks?: FormattingCheckItem[];
+  };
   technicalSkillsMatch: number;
   experienceMatch: number;
+  experienceAssessment?: string;
   productSkillsMatch: number;
+  projectRelevance?: number;
+  projectAssessment?: string;
   keywordMatch: number;
+  improvementScore?: number;
+  improvementSummary?: string;
   matchedKeywords: KeywordMatch[];
   missingKeywords: KeywordMatch[];
   strongPoints: string[];
   improvementRecommendations: string[];
   formattingNotes: string[];
+  calculationMethod?: string;
   disclaimer: string;
 }
 
@@ -126,6 +153,16 @@ export interface IdentifiedKeyword {
   added?: boolean;
 }
 
+export interface ResumeSnapshot {
+  id: string;
+  timestamp: string;
+  label: string;
+  note?: string;
+  structuredData: StructuredResume;
+  latexSource: string;
+  estimatedScore?: number;
+}
+
 export interface ResumeVersion {
   id: string;
   userId?: string;
@@ -134,6 +171,7 @@ export interface ResumeVersion {
   companyName: string;
   cvType: 'uploaded' | 'created' | 'optimized';
   templateId: string;
+  language?: SupportedLanguage;
   latexSource: string;
   originalLatex: string;
   structuredData: StructuredResume;
@@ -142,6 +180,7 @@ export interface ResumeVersion {
   identifiedKeywordsToAdd?: IdentifiedKeyword[];
   atsReport?: ATSReport;
   jdText?: string;
+  snapshots?: ResumeSnapshot[];
   createdAt: string;
   updatedAt: string;
   isOriginal?: boolean;
@@ -152,8 +191,71 @@ export interface TemplateDefinition {
   name: string;
   category: string;
   description: string;
-  atsScore: string;
+  layoutFormat: 'Single-Column' | 'Two-Column Split';
+  parsingProfile: string;
   accentColor: string;
   tags: string[];
-  popular?: boolean;
+}
+
+export interface SavedJobDescription {
+  id: string;
+  userId?: string;
+  role: string;
+  company: string;
+  industry?: string;
+  text: string;
+  createdAt: string;
+  updatedAt: string;
+  isSample?: boolean;
+}
+
+export interface CoverLetterResult {
+  subject: string;
+  greeting: string;
+  bodyParagraphs: string[];
+  closing: string;
+  fullText: string;
+  keyThemesMatched: string[];
+}
+
+export interface LinkedInOptimizationResult {
+  headlines: string[];
+  aboutSection: string;
+  experienceHighlights: {
+    role: string;
+    company: string;
+    bullets: string[];
+  }[];
+  topSkillsToPin: string[];
+  profileKeywords: string[];
+}
+
+export interface InterviewQuestion {
+  id: string;
+  category: 'Technical & Domain' | 'Behavioral (STAR)' | 'Product & Case' | 'Resume Deep-Dive';
+  difficulty: 'Standard' | 'Challenging';
+  question: string;
+  whyAsked: string;
+  suggestedFramework: string;
+  resumeAnchor: string;
+}
+
+export type ApplicationStatus = 'Saved' | 'Applied' | 'Interviewing' | 'Offer' | 'Rejected';
+
+export interface JobApplication {
+  id: string;
+  userId?: string;
+  company: string;
+  role: string;
+  status: ApplicationStatus;
+  resumeVersionId?: string;
+  resumeTitle?: string;
+  estimatedFit?: number;
+  appliedDate: string;
+  followUpDate?: string;
+  location?: string;
+  jobUrl?: string;
+  jdText?: string;
+  notes?: string;
+  updatedAt: string;
 }

@@ -1,0 +1,34 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Default Deny: No public file reads or writes anywhere
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function isValidResumeUpload() {
+      return request.resource.size > 0
+        && request.resource.size <= 5 * 1024 * 1024
+        && (
+          request.resource.contentType.matches('text/plain')
+          || request.resource.contentType.matches('text/markdown')
+          || request.resource.contentType.matches('application/pdf')
+          || request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+          || request.resource.contentType.matches('application/x-tex')
+        );
+    }
+
+    // Private User Resume Storage (owner-only read, write, and delete)
+    match /users/{userId}/resumes/{fileId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && fileId.matches('^[a-zA-Z0-9._\\-]{1,128}$')
+        && isValidResumeUpload();
+      allow delete: if isOwner(userId);
+    }
+  }
+}

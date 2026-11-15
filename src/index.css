@@ -2,14 +2,86 @@
 
 @layer base {
   :root {
-    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    --color-primary: #173B65;
+    --color-primary-hover: #122F52;
+    --color-secondary: #3978B8;
+    --color-secondary-hover: #2E649B;
+    --color-bg: #F7F9FC;
+    --color-surface: #FFFFFF;
+    --color-text: #182230;
+    --color-border: #E5EAF0;
   }
 
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  html,
   body {
     font-family: var(--font-sans);
-    background-color: #F5F7FA;
-    color: #222222;
+    background-color: #F7F9FC;
+    color: #182230;
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+}
+
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+/* Subtle interactive surface & button transitions */
+.card-interactive {
+  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.card-interactive:hover {
+  transform: translateY(-2px);
+  border-color: rgba(57, 120, 184, 0.55);
+  box-shadow: 0 8px 20px -12px rgba(23, 59, 101, 0.22);
+}
+
+.btn-interactive {
+  transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.btn-interactive:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+/* Flat solid skeleton block pulse (no heavy gradients) */
+@keyframes skeletonPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.skeleton-block {
+  background-color: #E5EAF0;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-interactive:hover {
+    transform: none;
+  }
+  .btn-interactive:active:not(:disabled) {
+    transform: none;
+  }
+  .skeleton-block {
+    animation: none;
   }
 }
 
@@ -22,21 +94,39 @@
   scrollbar-width: none;
 }
 
-/* Custom print stylesheet for direct high fidelity printing */
+/* Custom print stylesheet for clean browser Print-to-PDF of the A4 sheet */
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+  html,
   body {
-    background: white !important;
+    background: #ffffff !important;
     padding: 0 !important;
+    margin: 0 !important;
+  }
+  body * {
+    visibility: hidden !important;
+  }
+  #resume-a4-document,
+  #resume-a4-document * {
+    visibility: visible !important;
+  }
+  #resume-a4-document {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+    box-shadow: none !important;
+    border: none !important;
     margin: 0 !important;
   }
   .no-print {
     display: none !important;
-  }
-  .print-only-page {
-    box-shadow: none !important;
-    border: none !important;
-    margin: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
+    visibility: hidden !important;
   }
 }

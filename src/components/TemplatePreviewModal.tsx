@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Check, 
@@ -6,7 +6,8 @@ import {
   ShieldCheck, 
   ArrowRight,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Info
 } from 'lucide-react';
 import { StructuredResume } from '../types/resume';
 import { RESUME_TEMPLATES } from '../data/templates';
@@ -29,6 +30,28 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
   resumeData,
 }) => {
   const [activeTemplateId, setActiveTemplateId] = useState<string>(initialTemplateId);
+  const [showMobileSpecs, setShowMobileSpecs] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTemplateId(initialTemplateId);
+    }
+  }, [isOpen, initialTemplateId]);
+
+  // Close on Escape key press & lock body scroll
+  useEffect(() => {
+    if (!isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -91,9 +114,9 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
         };
       case 'template-ats':
         return {
-          archetype: 'Zero-Clutter Linear ATS Pure Text',
-          structure: 'Single-column monochrome text, standard headings, guaranteed 100% parser score across Workday & Taleo',
-          bestFor: 'High-Volume Enterprise Applications, Strict ATS Portals',
+          archetype: 'Linear Single-Column Text',
+          structure: 'Single-column monochrome hierarchy with standard section headings and predictable reading order.',
+          bestFor: 'Enterprise job portals and automated resume parsers requiring clean linear text.',
         };
       default:
         return {
@@ -107,79 +130,105 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
   const highlights = getLayoutHighlights(activeTemplateId);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/75 backdrop-blur-xs p-2 sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-6xl h-[92vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#182230]/60 backdrop-blur-xs p-2 sm:p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white w-full max-w-6xl h-[94dvh] sm:h-[90dvh] rounded-[14px] shadow-2xl flex flex-col overflow-hidden border border-[#E5EAF0]">
         {/* Top Modal Navigation & Controls */}
-        <div className="bg-white border-b border-slate-200 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 shrink-0">
-          <div className="flex items-center gap-3">
+        <div className="bg-white border-b border-[#E5EAF0] px-3 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <div 
               style={{ backgroundColor: currentTemplate.accentColor }}
-              className="w-3.5 h-8 rounded-sm shrink-0"
+              className="w-2.5 sm:w-3 h-7 sm:h-8 rounded-[4px] shrink-0"
             />
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-[#1F2A44]">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <h2 className="text-sm sm:text-base font-bold text-[#173B65] truncate">
                   {currentTemplate.name}
                 </h2>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  {currentTemplate.atsScore}
+                <span className="hidden sm:inline-block text-xs font-medium px-2.5 py-0.5 rounded-[8px] bg-[#F7F9FC] text-[#173B65] border border-[#E5EAF0]">
+                  {currentTemplate.parsingProfile}
                 </span>
-                <span className="text-[11px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded font-medium">
-                  {highlights.archetype}
+                <span className="text-[11px] text-slate-600 bg-[#F7F9FC] border border-[#E5EAF0] px-2 py-0.5 rounded-[8px] font-medium">
+                  {currentTemplate.layoutFormat}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
                 Template {currentIndex + 1} of {RESUME_TEMPLATES.length} · {currentTemplate.category}
               </p>
             </div>
           </div>
 
-          {/* Quick Prev / Next Switcher */}
-          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
-            <button
-              onClick={handlePrev}
-              className="p-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded transition-colors"
-              title="Previous Template"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-xs font-semibold px-2 text-slate-700 select-none">
-              {currentIndex + 1} / {RESUME_TEMPLATES.length}
-            </span>
-            <button
-              onClick={handleNext}
-              className="p-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded transition-colors"
-              title="Next Template"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+            {/* Quick Prev / Next Switcher */}
+            <div className="flex items-center gap-1 bg-[#F7F9FC] border border-[#E5EAF0] p-1 rounded-[10px]">
+              <button
+                type="button"
+                onClick={handlePrev}
+                className="p-1 text-slate-600 hover:text-[#173B65] hover:bg-white rounded-[8px] transition-colors cursor-pointer"
+                title="Previous Template"
+                aria-label="Previous template"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-semibold px-1.5 sm:px-2 text-[#182230] select-none font-mono tabular-nums">
+                {currentIndex + 1} / {RESUME_TEMPLATES.length}
+              </span>
+              <button
+                type="button"
+                onClick={handleNext}
+                className="p-1 text-slate-600 hover:text-[#173B65] hover:bg-white rounded-[8px] transition-colors cursor-pointer"
+                title="Next Template"
+                aria-label="Next template"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
 
-          {/* Primary actions */}
-          <div className="flex items-center gap-3">
+            {/* Primary actions */}
+            <div className="flex items-center gap-1.5 sm:gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowMobileSpecs((prev) => !prev)}
+                className={`lg:hidden min-h-[36px] px-2.5 py-1.5 text-xs font-semibold rounded-[10px] border flex items-center gap-1 cursor-pointer transition-colors ${
+                  showMobileSpecs
+                    ? 'bg-[#173B65] text-white border-[#173B65]'
+                    : 'bg-white text-[#173B65] border-[#E5EAF0] hover:bg-[#F7F9FC]'
+                }`}
+              >
+                <Info className="w-3.5 h-3.5" />
+                <span>Details</span>
+              </button>
 
-            <button
-              onClick={() => {
-                onSelectTemplate(activeTemplateId);
-                onClose();
-              }}
-              className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center gap-1.5 transition-colors shadow-xs"
-            >
-              <Check className="w-4 h-4" />
-              <span>Use This Template</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onSelectTemplate(activeTemplateId);
+                  onClose();
+                }}
+                className="btn-interactive min-h-[36px] px-3 sm:px-4 py-1.5 sm:py-2 text-xs font-bold text-white bg-[#173B65] hover:bg-[#122F52] rounded-[10px] flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              >
+                <Check className="w-4 h-4" />
+                <span>Use Template</span>
+              </button>
 
-            <button
-              onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="min-h-[36px] min-w-[36px] p-1.5 text-slate-400 hover:text-[#173B65] hover:bg-[#F7F9FC] rounded-[10px] transition-colors flex items-center justify-center cursor-pointer"
+                aria-label="Close preview"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Template Selector Pill Row (Quick thumbnail switcher) */}
-        <div className="bg-slate-50 border-b border-slate-200 px-6 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
+        <div className="bg-[#F7F9FC] border-b border-[#E5EAF0] px-4 sm:px-6 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-2 shrink-0">
             Compare Styles:
           </span>
@@ -188,14 +237,15 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
             return (
               <button
                 key={tmpl.id}
+                type="button"
                 onClick={() => setActiveTemplateId(tmpl.id)}
                 style={{
                   borderColor: isCurrent ? tmpl.accentColor : undefined,
                 }}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all shrink-0 border ${
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-[10px] text-xs font-semibold whitespace-nowrap transition-all shrink-0 border cursor-pointer ${
                   isCurrent
-                    ? 'bg-white shadow-xs text-slate-900 ring-2 ring-blue-500/20'
-                    : 'bg-slate-100/80 border-slate-200 text-slate-600 hover:bg-white'
+                    ? 'bg-white text-[#173B65] border-[#3978B8] shadow-xs'
+                    : 'bg-white/80 border-[#E5EAF0] text-slate-600 hover:bg-white'
                 }`}
               >
                 <span 
@@ -208,16 +258,42 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
           })}
         </div>
 
+        {/* Collapsible Mobile & Tablet Template Specs (< lg) */}
+        {showMobileSpecs && (
+          <div className="lg:hidden bg-white border-b border-[#E5EAF0] p-4 space-y-3 max-h-[38dvh] overflow-y-auto shrink-0">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#3978B8]">
+                  {highlights.archetype}
+                </span>
+                <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+                  {currentTemplate.description}
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[11px]">
+              <div className="p-2.5 bg-[#F7F9FC] rounded-[10px] border border-[#E5EAF0]">
+                <div className="font-bold text-[#173B65] mb-0.5">Structural Blueprint</div>
+                <p className="text-slate-600">{highlights.structure}</p>
+              </div>
+              <div className="p-2.5 bg-emerald-50/60 rounded-[10px] border border-emerald-200">
+                <div className="font-bold text-emerald-900 mb-0.5">Recommended For</div>
+                <p className="text-emerald-800">{highlights.bestFor}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Content Area: Left Spec Card & Center Rendered A4 View */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex min-h-0 overflow-hidden">
           {/* Left Spec Sidebar */}
-          <div className="hidden lg:flex w-72 bg-white border-r border-slate-200 p-5 flex-col justify-between overflow-y-auto shrink-0">
+          <div className="hidden lg:flex w-72 bg-white border-r border-[#E5EAF0] p-5 flex-col justify-between overflow-y-auto shrink-0">
             <div className="space-y-4">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#3978B8]">
                   Layout Architecture
                 </span>
-                <h3 className="text-sm font-bold text-slate-900 mt-0.5">
+                <h3 className="text-sm font-bold text-[#173B65] mt-0.5">
                   {highlights.archetype}
                 </h3>
                 <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
@@ -225,9 +301,9 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
                 </p>
               </div>
 
-              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
-                <div className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-blue-600" />
+              <div className="p-3 bg-[#F7F9FC] rounded-[10px] border border-[#E5EAF0] space-y-2">
+                <div className="text-[11px] font-bold text-[#173B65] flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-[#3978B8]" />
                   <span>Structural Blueprint</span>
                 </div>
                 <p className="text-[11px] text-slate-600 leading-normal">
@@ -235,7 +311,7 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
                 </p>
               </div>
 
-              <div className="p-3 bg-emerald-50/60 rounded-lg border border-emerald-200 space-y-1.5">
+              <div className="p-3 bg-emerald-50/60 rounded-[10px] border border-emerald-200 space-y-1.5">
                 <div className="text-[11px] font-bold text-emerald-900 flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                   <span>Recommended For</span>
@@ -247,11 +323,11 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
 
               <div className="space-y-1.5">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Features & Tags
+                  Features &amp; Tags
                 </span>
                 <div className="flex flex-wrap gap-1">
                   {currentTemplate.tags.map((t, idx) => (
-                    <span key={idx} className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium">
+                    <span key={idx} className="text-[10px] bg-[#F7F9FC] border border-[#E5EAF0] text-slate-700 px-2 py-0.5 rounded-[6px] font-medium">
                       {t}
                     </span>
                   ))}
@@ -259,13 +335,14 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-200">
+            <div className="pt-4 border-t border-[#E5EAF0]">
               <button
+                type="button"
                 onClick={() => {
                   onSelectTemplate(activeTemplateId);
                   onClose();
                 }}
-                className="w-full py-2.5 px-3 text-xs font-bold text-white bg-[#1F2A44] hover:bg-slate-900 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-xs"
+                className="btn-interactive w-full py-2.5 px-3 text-xs font-bold text-white bg-[#173B65] hover:bg-[#122F52] rounded-[10px] flex items-center justify-center gap-2"
               >
                 <span>Select &amp; Customize</span>
                 <ArrowRight className="w-4 h-4" />
@@ -274,7 +351,7 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
           </div>
 
           {/* Central A4 Live Preview Render Viewport */}
-          <div className="flex-1 bg-slate-100/90 h-full overflow-hidden">
+          <div className="flex-1 bg-[#F7F9FC] h-full overflow-hidden">
             <ResumePreviewA4
               data={previewResume}
               targetRole={previewResume.targetRoleHeadline || 'Product Manager'}
